@@ -1782,34 +1782,23 @@ async function printQuote(id){
         </div>
       </div>`;
     // Open in new window for reliable printing
-    const win = window.open('','_blank','width=900,height=700,scrollbars=yes');
-    win.document.write(`<!DOCTYPE html>
-<html lang="es">
-<head>
-<meta charset="UTF-8">
-<title>Cotización COT-\${q.numero} — CARRBA</title>
-<style>
-  *{box-sizing:border-box;margin:0;padding:0}
-  body{font-family:Arial,sans-serif;font-size:11px;color:#000;background:#fff;padding:20px}
-  @media print{
-    body{padding:10px}
-    .no-print{display:none!important}
-    @page{margin:15mm}
-  }
-  .btn-print{display:inline-block;margin:10px 5px 20px;padding:10px 24px;background:#1a3a5c;color:#fff;border:none;border-radius:6px;font-size:13px;cursor:pointer;font-family:Arial}
-  .btn-print:hover{background:#2a5a8c}
-  table{width:100%;border-collapse:collapse}
-  th,td{padding:5px 8px;font-size:10px}
-</style>
-</head>
-<body>
-<div class="no-print" style="text-align:center;padding:10px;background:#f0f4f8;border-bottom:2px solid #1a3a5c;margin-bottom:16px">
-  <button class="btn-print" onclick="window.print()">🖨️ Imprimir / Guardar PDF</button>
-  <button class="btn-print" style="background:#666" onclick="window.close()">✕ Cerrar</button>
-</div>
-\${html}
-</body>
-</html>`);
+    var win = window.open('','_blank','width=900,height=700,scrollbars=yes');
+    var fullHtml = '<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">'
+      + '<title>Cotizacion COT-' + q.numero + ' CARRBA</title>'
+      + '<style>'
+      + '*{box-sizing:border-box;margin:0;padding:0}'
+      + 'body{font-family:Arial,sans-serif;font-size:11px;color:#000;background:#fff;padding:20px}'
+      + '@media print{body{padding:10px}.no-print{display:none!important}@page{margin:12mm}}'
+      + '.btn-print{display:inline-block;margin:10px 5px 20px;padding:10px 24px;background:#1a3a5c;color:#fff;border:none;border-radius:6px;font-size:13px;cursor:pointer;font-family:Arial}'
+      + 'table{width:100%;border-collapse:collapse}'
+      + '</style></head><body>'
+      + '<div class="no-print" style="text-align:center;padding:10px;background:#f0f4f8;border-bottom:2px solid #1a3a5c;margin-bottom:16px">'
+      + '<button class="btn-print" onclick="window.print()">Imprimir / Guardar PDF</button>'
+      + '<button class="btn-print" style="background:#666;margin-left:10px" onclick="window.close()">Cerrar</button>'
+      + '</div>'
+      + html
+      + '</body></html>';
+    win.document.write(fullHtml);
     win.document.close();
     win.focus();
   }catch(e){toast('Error al imprimir: '+e.message,'error');}
