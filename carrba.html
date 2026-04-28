@@ -303,6 +303,7 @@ tbody tr:hover{background:rgba(41,168,224,.04)}
     <div class="topbar-title" id="topbarTitle">Dashboard</div>
     <div class="topbar-actions">
       <span id="lastSync"></span>
+      <button class="btn btn-secondary btn-sm" onclick="testAPI()" title="Probar conexión con Google Sheets">🔌 Test</button>
       <button class="btn btn-secondary btn-sm" id="syncBtn" onclick="syncData()">↺ Sincronizar</button>
     </div>
   </div>
@@ -489,7 +490,20 @@ tbody tr:hover{background:rgba(41,168,224,.04)}
       </div>
       <div class="form-row">
         <div class="form-group"><label>Stock Mínimo</label><input type="number" id="prodStockMin" min="0" value="3"></div>
-        <div class="form-group"><label>URL de Imagen (opcional)</label><input type="url" id="prodImagen" placeholder="https://..."></div>
+        <div class="form-group">
+        <label>Imagen del Producto (opcional)</label>
+        <div style="display:flex;gap:8px;align-items:center">
+          <input type="url" id="prodImagen" placeholder="https://... (URL de imagen)" style="flex:1">
+          <label style="cursor:pointer;background:var(--navy3);border:1px solid var(--border2);border-radius:var(--r);padding:8px 12px;font-size:.75rem;color:var(--text2);white-space:nowrap">
+            📁 Subir
+            <input type="file" id="prodImagenFile" accept="image/*" onchange="handleImageUpload(this)" style="display:none">
+          </label>
+        </div>
+        <div id="prodImagenPreview" style="margin-top:8px;display:none">
+          <img id="prodImagenThumb" style="width:80px;height:80px;object-fit:cover;border-radius:var(--r);border:1px solid var(--border2)">
+          <button onclick="clearImageUpload()" style="margin-left:8px;background:none;border:none;color:var(--red);cursor:pointer;font-size:.8rem">✕ Quitar</button>
+        </div>
+      </div>
       </div>
       <div class="form-group" style="margin-top:14px">
         <label>Notas / Descripción</label>
@@ -792,15 +806,46 @@ const S = {
 function api(data){
   return new Promise((res,rej)=>{
     const cb='cb_'+Date.now()+'_'+Math.random().toString(36).substr(2,5);
-    const params=Object.entries(data).map(([k,v])=>encodeURIComponent(k)+'='+encodeURIComponent(typeof v==='object'?JSON.stringify(v):v)).join('&');
+    const params=Object.entries(data).map(([k,v])=>{
+      const val=typeof v==='object'?JSON.stringify(v):String(v===null||v===undefined?'':v);
+      return encodeURIComponent(k)+'='+encodeURIComponent(val);
+    }).join('&');
     const url=API_URL+'?'+params+'&callback='+cb;
     const script=document.createElement('script');
-    const timer=setTimeout(()=>{ delete window[cb]; document.body.removeChild(script); rej(new Error('Timeout')); },20000);
-    window[cb]=r=>{ clearTimeout(timer); delete window[cb]; document.body.removeChild(script); res(r); };
+    const timer=setTimeout(()=>{
+      try{if(script.parentNode)document.body.removeChild(script);}catch(e){}
+      delete window[cb];
+      rej(new Error('⏱ Tiempo agotado. Verifica: 1) Conexión a internet  2) El script esté correctamente publicado en Apps Script → Implementar → Nueva versión'));
+    },25000);
+    window[cb]=r=>{
+      clearTimeout(timer);
+      delete window[cb];
+      try{if(script.parentNode)document.body.removeChild(script);}catch(e){}
+      res(r);
+    };
     script.src=url;
-    script.onerror=()=>{ clearTimeout(timer); delete window[cb]; rej(new Error('Error de red')); };
+    script.onerror=()=>{
+      clearTimeout(timer);
+      delete window[cb];
+      try{if(script.parentNode)document.body.removeChild(script);}catch(e){}
+      rej(new Error('🌐 Error de red. El script puede no estar publicado. Ve a Apps Script → Implementar → Administrar implementaciones → Editar → Nueva versión → Implementar'));
+    };
     document.body.appendChild(script);
   });
+}
+
+async function testAPI(){
+  try{
+    showLoading();
+    const r=await api({action:'getConfig'});
+    if(r&&r.success){
+      toast('✅ Conexión a Google Sheets OK','success');
+    } else {
+      toast('⚠️ Script respondió pero con error: '+(r&&r.error?r.error:'desconocido'),'error');
+    }
+  }catch(e){
+    toast(e.message,'error');
+  }finally{hideLoading();}
 }
 
 // ============================================================
@@ -1045,6 +1090,8 @@ function openProductModal(id){
   document.getElementById('prodImagen').value='';
   document.getElementById('prodNotas').value='';
   document.getElementById('productModalTitle').textContent='Nuevo Producto';
+  document.getElementById('prodImagenPreview').style.display='none';
+  document.getElementById('prodImagenFile').value='';
   populateProdCatSelect();
   document.getElementById('modalProduct').classList.add('open');
 }
@@ -1068,6 +1115,27 @@ function editProduct(id){
 function populateProdCatSelect(sel){
   const el=document.getElementById('prodCategoria');
   el.innerHTML=S.categories.map(c=>`<option value="${esc(c.nombre)}" ${sel===c.nombre?'selected':''}>${esc(c.nombre)}</option>`).join('');
+}
+
+
+function handleImageUpload(input){
+  const file=input.files[0];
+  if(!file)return;
+  if(file.size>500000){toast('La imagen es muy grande. Usa una imagen menor a 500KB o pega una URL.','error');return;}
+  const reader=new FileReader();
+  reader.onload=e=>{
+    const b64=e.target.result;
+    document.getElementById('prodImagen').value=b64;
+    document.getElementById('prodImagenThumb').src=b64;
+    document.getElementById('prodImagenPreview').style.display='block';
+  };
+  reader.readAsDataURL(file);
+}
+
+function clearImageUpload(){
+  document.getElementById('prodImagen').value='';
+  document.getElementById('prodImagenFile').value='';
+  document.getElementById('prodImagenPreview').style.display='none';
 }
 
 async function saveProductForm(){
