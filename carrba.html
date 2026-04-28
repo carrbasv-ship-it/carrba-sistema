@@ -911,35 +911,59 @@ function startApp(){
 async function loadAll(){
   showLoading();
   try{
-    // Load each section independently so one failure doesn't block others
-    const [rProd, rSales, rCfg, rCats, rClients, rQuotes, rPurch, rCxC] = await Promise.allSettled([
-      api({action:'getProducts'}),
-      api({action:'getSales'}),
-      api({action:'getConfig'}),
-      api({action:'getCategories'}),
-      api({action:'getClients'}),
-      api({action:'getQuotes'}),
-      api({action:'getPurchases'}),
-      api({action:'getCxC'})
-    ]);
-    if(rProd.status==='fulfilled'&&rProd.value.success)    S.products   = rProd.value.data   ||[];
-    if(rSales.status==='fulfilled'&&rSales.value.success)  S.sales      = rSales.value.data  ||[];
-    if(rCfg.status==='fulfilled'&&rCfg.value.success)      S.config     = rCfg.value.data    ||{};
-    if(rCats.status==='fulfilled'&&rCats.value.success)    S.categories = rCats.value.data   ||[];
-    if(rClients.status==='fulfilled'&&rClients.value.success) S.clients  = rClients.value.data||[];
-    if(rQuotes.status==='fulfilled'&&rQuotes.value.success) S.quotes    = rQuotes.value.data  ||[];
-    if(rPurch.status==='fulfilled'&&rPurch.value.success)  S.purchases  = rPurch.value.data  ||[];
-    if(rCxC.status==='fulfilled'&&rCxC.value.success)      S.cxc        = rCxC.value.data    ||[];
-    // Sync users in background
-    try{
-      const srv=await api({action:'getUsers'});
-      if(srv.success&&srv.data&&srv.data.length>0) saveCredentials(srv.data);
-    }catch(e){}
-    S.loaded=true;
-    renderAll();
-    updateSync();
-  }catch(e){ toast('Error de conexión: '+e.message,'error'); }
-  finally{ hideLoading(); }
+    // Single request - getAll returns everything at once (more reliable with Apps Script)
+    const r = await api({action:'getAll'});
+    if(r && r.success){
+      S.products   = Array.isArray(r.products)   ? r.products   : [];
+      S.sales      = Array.isArray(r.sales)       ? r.sales      : [];
+      S.config     = (r.config && typeof r.config==='object') ? r.config : {};
+      S.categories = Array.isArray(r.categories)  ? r.categories : [];
+      S.clients    = Array.isArray(r.clients)     ? r.clients    : [];
+      S.quotes     = Array.isArray(r.quotes)      ? r.quotes     : [];
+      S.purchases  = Array.isArray(r.purchases)   ? r.purchases  : [];
+      S.cxc        = Array.isArray(r.cxc)         ? r.cxc        : [];
+      S.loaded = true;
+      renderAll();
+      updateSync();
+      console.log('Data loaded — clients:'+S.clients.length+' quotes:'+S.quotes.length+' products:'+S.products.length);
+    } else {
+      toast('Error al cargar datos: '+(r&&r.error?r.error:'Sin respuesta del servidor'),'error');
+      console.error('loadAll failed:', r);
+    }
+  }catch(e){
+    toast('Error de conexión al cargar: '+e.message,'error');
+    console.error('loadAll exception:', e);
+  }finally{ hideLoading(); }
+}
+
+// Refresh ONE section — sequential, reliable
+async function refreshSection(section){
+  try{
+    const map = {
+      clients:   {action:'getClients',   key:'clients'},
+      quotes:    {action:'getQuotes',    key:'quotes'},
+      products:  {action:'getProducts',  key:'products'},
+      sales:     {action:'getSales',     key:'sales'},
+      purchases: {action:'getPurchases', key:'purchases'},
+      cxc:       {action:'getCxC',       key:'cxc'},
+      categories:{action:'getCategories',key:'categories'},
+    };
+    const def = map[section];
+    if(!def){ await loadAll(); return; }
+    const r = await api({action: def.action});
+    if(r && r.success){
+      S[def.key] = Array.isArray(r.data) ? r.data : [];
+      console.log('Refreshed '+section+': '+S[def.key].length+' records');
+      renderAll();
+      updateSync();
+    } else {
+      console.warn('refreshSection failed for '+section+', falling back to loadAll');
+      await loadAll();
+    }
+  }catch(e){
+    console.error('refreshSection error:', e);
+    await loadAll();
+  }
 }
 
 // Targeted refresh for a single section (faster than full reload)
@@ -1357,15 +1381,12 @@ async function saveClientForm(){
   try{
     const r=await api(data);
     if(r.success){
+      console.log('saveClient OK, id:', r.id, 'isEdit:', isEdit);
       toast((isEdit?'Cliente actualizado':'Cliente registrado')+' ✓','success');
       closeModal('modalClient');
-      // Optimistic update: add/update locally first so UI reflects immediately
-      if(!isEdit && r.id){
-        S.clients.push({...data, id:r.id, activo:true, fecha_creacion:new Date().toISOString()});
-        renderClientsTable();
-      }
-      // Then sync from server
+      // Reload clients from server
       await refreshSection('clients');
+      console.log('After refresh, clients count:', S.clients.length);
     } else {
       toast('Error al guardar: '+(r.error||'Respuesta inesperada del servidor'),'error');
       console.error('saveClient error:', r);
@@ -1593,7 +1614,7 @@ async function saveQuoteForm(andPrint){
     const r=await api(data);
     if(r.success){
       const savedId=r.id||qId;
-      // Save items - send in chunks to avoid URL length issues
+      // Save items
       const itemsClean=items.map(i=>({
         producto_id:String(i.producto_id||''),
         descripcion:String(i.descripcion||''),
@@ -1603,13 +1624,15 @@ async function saveQuoteForm(andPrint){
         incluye_iva:i.incluye_iva?'true':'false',
         subtotal_item:parseFloat(i.subtotal_item)||0
       }));
-      await api({action:'saveQuoteItems',cotizacion_id:savedId,items:JSON.stringify(itemsClean)});
-      // Update local quote number counter
+      const ri=await api({action:'saveQuoteItems',cotizacion_id:savedId,items:JSON.stringify(itemsClean)});
+      console.log('saveQuoteItems result:', ri);
       localStorage.setItem('carrba_next_quote', parseInt(num)+1);
-      await loadAll();
+      // Reload quotes so we have the saved data before printing
+      const rq=await api({action:'getQuotes'});
+      if(rq.success){ S.quotes=rq.data||[]; renderQuotesTable(); }
       toast('Cotización #'+num+' guardada ✓','success');
-      if(andPrint){ closeModal('modalQuote'); printQuote(savedId); }
-      else closeModal('modalQuote');
+      closeModal('modalQuote');
+      if(andPrint){ printQuote(savedId); }
     } else toast('Error: '+(r.error||'desconocido'),'error');
   }catch(e){toast('Error al guardar: '+e.message,'error');}
   finally{hideLoading();}
@@ -1618,8 +1641,17 @@ async function saveQuoteForm(andPrint){
 function saveAndPrintQuote(){ saveQuoteForm(true); closeModal('modalQuote'); }
 
 async function printQuote(id){
-  const q=S.quotes.find(x=>String(x.id)===String(id));
-  if(!q){toast('Cotización no encontrada','error');return;}
+  let q=S.quotes.find(x=>String(x.id)===String(id));
+  if(!q){
+    // Try reloading quotes from server before giving up
+    showLoading();
+    try{
+      const rq=await api({action:'getQuotes'});
+      if(rq.success){ S.quotes=rq.data||[]; }
+      q=S.quotes.find(x=>String(x.id)===String(id));
+    }catch(e){}finally{hideLoading();}
+  }
+  if(!q){toast('Cotización no encontrada. Intenta sincronizar (↺) y volver a intentar.','error');return;}
   showLoading();
   try{
     const r=await api({action:'getQuoteItems',cotizacion_id:id});
