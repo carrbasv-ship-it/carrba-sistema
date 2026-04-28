@@ -1766,8 +1766,8 @@ async function printQuote(id){
                 ${items.some(i=>i.imagen_url)?'<td style="padding:8px 10px;text-align:center;border:1px solid #1a3a5c;vertical-align:middle">'+(item.imagen_url?'<img src="'+esc(item.imagen_url)+'" style="width:60px;height:60px;object-fit:cover">':'')+'</td>':''}
                 <td style="padding:8px 10px;border:1px solid #1a3a5c;vertical-align:middle"><strong>${esc(item.descripcion)}</strong>${String(item.incluye_iva).toLowerCase()==='true'?' <em style=\"font-size:9px;color:#666\">(+IVA incluido)</em>':''}</td>
                 <td style="padding:8px 10px;text-align:center;border:1px solid #1a3a5c;vertical-align:middle">${item.cantidad}</td>
-                <td style="padding:8px 10px;text-align:right;border:1px solid #1a3a5c;vertical-align:middle">$ ${parseFloat(item.precio_unit||0).toFixed(2)}</td>
-                <td style="padding:8px 10px;text-align:right;border:1px solid #1a3a5c;vertical-align:middle;font-weight:700">$ ${totalItem.toFixed(2)}</td>
+                <td style="padding:8px 10px;text-align:right;border:1px solid #1a3a5c;vertical-align:middle">$ ${fmtP(item.precio_unit||0).replace('$ ','')}</td>
+                <td style="padding:8px 10px;text-align:right;border:1px solid #1a3a5c;vertical-align:middle;font-weight:700">$ ${fmtP(totalItem).replace('$ ','')}</td>
               </tr>`;
             }).join('')}
           </tbody>
@@ -1775,9 +1775,9 @@ async function printQuote(id){
         <!-- TOTALS -->
         <div style="display:flex;justify-content:flex-end;margin-bottom:20px">
           <table style="border-collapse:collapse;min-width:250px">
-            <tr><td style="padding:5px 10px;background:#f5f5f5;font-weight:700">SUBTOTAL</td><td style="padding:5px 14px;background:#f5f5f5;text-align:right;font-weight:700">$ ${subtotal.toFixed(2)}</td></tr>
-            <tr><td style="padding:5px 10px;border:1px solid #1a3a5c">IVA (13%)</td><td style="padding:5px 14px;border:1px solid #1a3a5c;text-align:right">$ ${ivaAmt.toFixed(2)}</td></tr>
-            <tr><td style="padding:8px 10px;background:#1a3a5c;color:#fff;font-weight:900;font-size:13px">TOTAL A PAGAR</td><td style="padding:8px 14px;background:#1a3a5c;color:#fff;text-align:right;font-weight:900;font-size:13px">$ ${total.toFixed(2)}</td></tr>
+            <tr><td style="padding:5px 10px;background:#f5f5f5;font-weight:700">SUBTOTAL</td><td style="padding:5px 14px;background:#f5f5f5;text-align:right;font-weight:700">$ ${fmtP(subtotal).replace('$ ','')}</td></tr>
+            <tr><td style="padding:5px 10px;border:1px solid #1a3a5c">IVA (13%)</td><td style="padding:5px 14px;border:1px solid #1a3a5c;text-align:right">$ ${fmtP(ivaAmt).replace('$ ','')}</td></tr>
+            <tr><td style="padding:8px 10px;background:#1a3a5c;color:#fff;font-weight:900;font-size:13px">TOTAL A PAGAR</td><td style="padding:8px 14px;background:#1a3a5c;color:#fff;text-align:right;font-weight:900;font-size:13px">$ ${fmtP(total).replace('$ ','')}</td></tr>
           </table>
         </div>
         <p style="font-size:9px;color:#666;margin-bottom:16px">* Los precios están expresados en dólares de los Estados Unidos de América (US$) e incluyen el 13% de IVA donde se indica.</p>
@@ -2640,7 +2640,8 @@ function populateCategoryFilters(){
   if(el){const prev=el.value;el.innerHTML='<option value="">Todas las categorías</option>'+opts;el.value=prev;}
 }
 
-function fmt(n){ const num=parseFloat(n)||0; return '$'+num.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,','); }
+function fmt(n){ const num=parseFloat(n)||0; const parts=num.toFixed(2).split('.'); parts[0]=parts[0].replace(/\B(?=(\d{3})+(?!\d))/g,','); return '$'+parts.join('.'); }
+function fmtP(n){ const num=parseFloat(n)||0; const parts=num.toFixed(2).split('.'); parts[0]=parts[0].replace(/\B(?=(\d{3})+(?!\d))/g,','); return '$ '+parts.join('.'); }
 function fmtDate(d){ if(!d||d==='—')return'—'; try{return new Date(d).toLocaleDateString('es-SV',{day:'2-digit',month:'short',year:'2-digit',hour:'2-digit',minute:'2-digit'});}catch(e){return String(d).substr(0,16);} }
 function fmtDateShort(d){ if(!d)return'—'; try{return new Date(d).toLocaleDateString('es-SV',{day:'2-digit',month:'2-digit',year:'numeric'});}catch(e){return String(d).substr(0,10);} }
 function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
