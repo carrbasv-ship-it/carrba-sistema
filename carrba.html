@@ -1651,15 +1651,20 @@ async function saveQuoteForm(andPrint){
     if(r.success){
       const savedId=r.id||qId;
       // Save items
-      const itemsClean=items.map(i=>({
-        producto_id:String(i.producto_id||''),
-        descripcion:String(i.descripcion||''),
-        imagen_url:String(i.imagen_url||''),
-        cantidad:parseInt(i.cantidad)||1,
-        precio_unit:parseFloat(i.precio_unit)||0,
-        incluye_iva:i.incluye_iva?'true':'false',
-        subtotal_item:parseFloat(i.subtotal_item)||0
-      }));
+      const itemsClean=items.map(i=>{
+        // Strip base64 images from items - too large for URL, looked up from products when printing
+        let imgUrl=String(i.imagen_url||'');
+        if(imgUrl.startsWith('data:')) imgUrl=''; // will be fetched from product on print
+        return {
+          producto_id:String(i.producto_id||''),
+          descripcion:String(i.descripcion||''),
+          imagen_url:imgUrl,
+          cantidad:parseInt(i.cantidad)||1,
+          precio_unit:parseFloat(i.precio_unit)||0,
+          incluye_iva:i.incluye_iva?'true':'false',
+          subtotal_item:parseFloat(i.subtotal_item)||0
+        };
+      });
       const ri=await api({action:'saveQuoteItems',cotizacion_id:savedId,items:JSON.stringify(itemsClean)});
       console.log('saveQuoteItems result:', ri);
       localStorage.setItem('carrba_next_quote', parseInt(num)+1);
@@ -1763,7 +1768,7 @@ async function printQuote(id){
               const totalItem=String(item.incluye_iva).toLowerCase()==='true'?subtItem*1.13:subtItem;
               return `<tr>
                 <td style="padding:8px 10px;text-align:center;border:1px solid #1a3a5c;vertical-align:middle">${idx+1}</td>
-                ${items.some(i=>i.imagen_url)?'<td style="padding:8px 10px;text-align:center;border:1px solid #1a3a5c;vertical-align:middle">'+(item.imagen_url?'<img src="'+esc(item.imagen_url)+'" style="width:60px;height:60px;object-fit:cover">':'')+'</td>':''}
+                ${items.some(i=>i.imagen_url||S.products.find(p=>String(p.id)===String(i.producto_id))?.imagen_url)?'<td style="padding:8px 10px;text-align:center;border:1px solid #1a3a5c;vertical-align:middle">'+(()=>{const imgSrc=item.imagen_url||(S.products.find(p=>String(p.id)===String(item.producto_id))?.imagen_url)||'';return imgSrc?'<img src="'+esc(imgSrc)+'" style="width:60px;height:60px;object-fit:cover">':''})()+'</td>':''}
                 <td style="padding:8px 10px;border:1px solid #1a3a5c;vertical-align:middle"><strong>${esc(item.descripcion)}</strong>${String(item.incluye_iva).toLowerCase()==='true'?' <em style=\"font-size:9px;color:#666\">(+IVA incluido)</em>':''}</td>
                 <td style="padding:8px 10px;text-align:center;border:1px solid #1a3a5c;vertical-align:middle">${item.cantidad}</td>
                 <td style="padding:8px 10px;text-align:right;border:1px solid #1a3a5c;vertical-align:middle">$ ${fmtP(item.precio_unit||0).replace('$ ','')}</td>
