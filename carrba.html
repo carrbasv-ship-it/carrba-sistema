@@ -911,27 +911,61 @@ function startApp(){
 async function loadAll(){
   showLoading();
   try{
-    const r=await api({action:'getAll'});
-    if(r.success){
-      S.products   = r.products   ||[];
-      S.sales      = r.sales      ||[];
-      S.config     = r.config     ||{};
-      S.categories = r.categories ||[];
-      S.clients    = r.clients    ||[];
-      S.quotes     = r.quotes     ||[];
-      S.purchases  = r.purchases  ||[];
-      S.cxc        = r.cxc        ||[];
-      // Sync server credentials
-      if(r.config){
-        const srv=await api({action:'getUsers'});
-        if(srv.success&&srv.data&&srv.data.length>0){ saveCredentials(srv.data); }
-      }
-      S.loaded=true;
-      renderAll();
-      updateSync();
-    } else { toast('Error cargando datos: '+(r.error||''),'error'); }
+    // Load each section independently so one failure doesn't block others
+    const [rProd, rSales, rCfg, rCats, rClients, rQuotes, rPurch, rCxC] = await Promise.allSettled([
+      api({action:'getProducts'}),
+      api({action:'getSales'}),
+      api({action:'getConfig'}),
+      api({action:'getCategories'}),
+      api({action:'getClients'}),
+      api({action:'getQuotes'}),
+      api({action:'getPurchases'}),
+      api({action:'getCxC'})
+    ]);
+    if(rProd.status==='fulfilled'&&rProd.value.success)    S.products   = rProd.value.data   ||[];
+    if(rSales.status==='fulfilled'&&rSales.value.success)  S.sales      = rSales.value.data  ||[];
+    if(rCfg.status==='fulfilled'&&rCfg.value.success)      S.config     = rCfg.value.data    ||{};
+    if(rCats.status==='fulfilled'&&rCats.value.success)    S.categories = rCats.value.data   ||[];
+    if(rClients.status==='fulfilled'&&rClients.value.success) S.clients  = rClients.value.data||[];
+    if(rQuotes.status==='fulfilled'&&rQuotes.value.success) S.quotes    = rQuotes.value.data  ||[];
+    if(rPurch.status==='fulfilled'&&rPurch.value.success)  S.purchases  = rPurch.value.data  ||[];
+    if(rCxC.status==='fulfilled'&&rCxC.value.success)      S.cxc        = rCxC.value.data    ||[];
+    // Sync users in background
+    try{
+      const srv=await api({action:'getUsers'});
+      if(srv.success&&srv.data&&srv.data.length>0) saveCredentials(srv.data);
+    }catch(e){}
+    S.loaded=true;
+    renderAll();
+    updateSync();
   }catch(e){ toast('Error de conexión: '+e.message,'error'); }
   finally{ hideLoading(); }
+}
+
+// Targeted refresh for a single section (faster than full reload)
+async function refreshSection(section){
+  try{
+    const actionMap={
+      clients:  {action:'getClients',  key:'clients'},
+      quotes:   {action:'getQuotes',   key:'quotes'},
+      products: {action:'getProducts', key:'products'},
+      sales:    {action:'getSales',    key:'sales'},
+      purchases:{action:'getPurchases',key:'purchases'},
+      cxc:      {action:'getCxC',      key:'cxc'},
+      categories:{action:'getCategories',key:'categories'},
+    };
+    const def=actionMap[section];
+    if(!def) return loadAll();
+    const r=await api({action:def.action});
+    if(r.success){
+      S[def.key]=r.data||[];
+      renderAll();
+      updateSync();
+    } else {
+      // fallback to full reload
+      await loadAll();
+    }
+  }catch(e){ await loadAll(); }
 }
 
 function renderAll(){
@@ -1155,9 +1189,15 @@ async function saveProductForm(){
   showLoading();
   try{
     const r=await api(data);
-    if(r.success){toast('Producto guardado ✓','success');closeModal('modalProduct');await loadAll();}
-    else toast('Error: '+(r.error||''),'error');
-  }catch(e){toast('Error: '+e.message,'error');}
+    if(r.success){
+      toast('Producto guardado ✓','success');
+      closeModal('modalProduct');
+      await refreshSection('products');
+    } else {
+      toast('Error al guardar producto: '+(r.error||'Respuesta inesperada'),'error');
+      console.error('saveProduct error:', r);
+    }
+  }catch(e){toast('Error de conexión: '+e.message,'error'); console.error(e);}
   finally{hideLoading();}
 }
 
@@ -1300,6 +1340,7 @@ async function deleteContactById(id){
 async function saveClientForm(){
   const nombre=document.getElementById('clientNombre').value.trim();
   if(!nombre){toast('El nombre de empresa es requerido','error');return;}
+  const isEdit=!!document.getElementById('clientId').value;
   const data={action:'saveClient',
     id:document.getElementById('clientId').value,
     nombre_empresa:nombre,
@@ -1315,9 +1356,24 @@ async function saveClientForm(){
   showLoading();
   try{
     const r=await api(data);
-    if(r.success){toast('Cliente guardado ✓','success');closeModal('modalClient');await loadAll();}
-    else toast('Error: '+(r.error||''),'error');
-  }catch(e){toast('Error: '+e.message,'error');}
+    if(r.success){
+      toast((isEdit?'Cliente actualizado':'Cliente registrado')+' ✓','success');
+      closeModal('modalClient');
+      // Optimistic update: add/update locally first so UI reflects immediately
+      if(!isEdit && r.id){
+        S.clients.push({...data, id:r.id, activo:true, fecha_creacion:new Date().toISOString()});
+        renderClientsTable();
+      }
+      // Then sync from server
+      await refreshSection('clients');
+    } else {
+      toast('Error al guardar: '+(r.error||'Respuesta inesperada del servidor'),'error');
+      console.error('saveClient error:', r);
+    }
+  }catch(e){
+    toast('Error de conexión: '+e.message,'error');
+    console.error('saveClient exception:', e);
+  }
   finally{hideLoading();}
 }
 
@@ -1824,9 +1880,15 @@ async function saveSaleForm(){
   showLoading();
   try{
     const r=await api(data);
-    if(r.success){toast('Venta registrada ✓','success');closeModal('modalSale');await loadAll();}
-    else toast('Error: '+(r.error||''),'error');
-  }catch(e){toast('Error: '+e.message,'error');}
+    if(r.success){
+      toast('Venta registrada ✓','success');
+      closeModal('modalSale');
+      await Promise.all([refreshSection('sales'), refreshSection('products')]);
+    } else {
+      toast('Error al registrar venta: '+(r.error||'Respuesta inesperada'),'error');
+      console.error('recordSale error:', r);
+    }
+  }catch(e){toast('Error de conexión: '+e.message,'error'); console.error(e);}
   finally{hideLoading();}
 }
 
@@ -1939,9 +2001,15 @@ async function savePurchaseForm(){
   showLoading();
   try{
     const r=await api(data);
-    if(r.success){toast('Compra registrada ✓','success');closeModal('modalPurchase');await loadAll();}
-    else toast('Error: '+(r.error||''),'error');
-  }catch(e){toast('Error: '+e.message,'error');}
+    if(r.success){
+      toast('Compra registrada ✓','success');
+      closeModal('modalPurchase');
+      await Promise.all([refreshSection('purchases'), refreshSection('products')]);
+    } else {
+      toast('Error al registrar compra: '+(r.error||'Respuesta inesperada'),'error');
+      console.error('savePurchase error:', r);
+    }
+  }catch(e){toast('Error de conexión: '+e.message,'error'); console.error(e);}
   finally{hideLoading();}
 }
 
@@ -2053,9 +2121,15 @@ async function saveCxCForm(){
   showLoading();
   try{
     const r=await api(data);
-    if(r.success){toast('CxC guardada ✓','success');closeModal('modalCxC');await loadAll();}
-    else toast('Error: '+(r.error||''),'error');
-  }catch(e){toast('Error: '+e.message,'error');}
+    if(r.success){
+      toast('Cuenta por cobrar guardada ✓','success');
+      closeModal('modalCxC');
+      await refreshSection('cxc');
+    } else {
+      toast('Error al guardar CxC: '+(r.error||'Respuesta inesperada'),'error');
+      console.error('saveCxC error:', r);
+    }
+  }catch(e){toast('Error de conexión: '+e.message,'error'); console.error(e);}
   finally{hideLoading();}
 }
 
@@ -2462,8 +2536,11 @@ function confirmDelete(type,id,label){
       else if(type==='client') action='deleteClient';
       const key=type==='cat'?'name':'id';
       r=await api({action,[key]:String(id)});
-      if(r&&r.success){toast('Eliminado ✓','success');await loadAll();}
-      else toast('Error: '+(r?.error||''),'error');
+      if(r&&r.success){
+        toast('Eliminado ✓','success');
+        const sectionMap={product:'products',sale:'sales',quote:'quotes',purchase:'purchases',cxc:'cxc',cat:'categories',client:'clients'};
+        await refreshSection(sectionMap[type]||'products');
+      } else toast('Error al eliminar: '+(r&&r.error?r.error:'Respuesta inesperada'),'error');
     }catch(e){toast('Error: '+e.message,'error');}
     finally{hideLoading();}
   };
