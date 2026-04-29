@@ -1755,7 +1755,7 @@ async function printQuote(id){
           <thead>
             <tr style="background:#1a3a5c;color:#fff">
               <th style="padding:7px 10px;text-align:center;width:40px">#</th>
-              ${items.some(i=>i.imagen_url)?'<th style="padding:7px 10px;text-align:center;width:70px">IMAGEN</th>':''} 
+              ${items.some(i=>i.imagen_url)?'<th style="padding:5px 8px;text-align:center;width:55px">IMG</th>':''} 
               <th style="padding:7px 10px;text-align:left">DESCRIPCIÓN DEL PRODUCTO</th>
               <th style="padding:7px 10px;text-align:center;width:60px">CANT</th>
               <th style="padding:7px 10px;text-align:right;width:90px">P. UNIT. (US$)</th>
@@ -1767,10 +1767,10 @@ async function printQuote(id){
               const subtItem=parseFloat(item.cantidad||1)*parseFloat(item.precio_unit||0);
               const totalItem=String(item.incluye_iva).toLowerCase()==='true'?subtItem*1.13:subtItem;
               return `<tr>
-                <td style="padding:8px 10px;text-align:center;border:1px solid #1a3a5c;vertical-align:middle">${idx+1}</td>
-                ${items.some(i=>i.imagen_url||S.products.find(p=>String(p.id)===String(i.producto_id))?.imagen_url)?'<td style="padding:8px 10px;text-align:center;border:1px solid #1a3a5c;vertical-align:middle">'+(()=>{const imgSrc=item.imagen_url||(S.products.find(p=>String(p.id)===String(item.producto_id))?.imagen_url)||'';return imgSrc?'<img src="'+esc(imgSrc)+'" style="width:60px;height:60px;object-fit:cover">':''})()+'</td>':''}
-                <td style="padding:8px 10px;border:1px solid #1a3a5c;vertical-align:middle"><strong>${esc(item.descripcion)}</strong>${String(item.incluye_iva).toLowerCase()==='true'?' <em style=\"font-size:9px;color:#666\">(+IVA incluido)</em>':''}</td>
-                <td style="padding:8px 10px;text-align:center;border:1px solid #1a3a5c;vertical-align:middle">${item.cantidad}</td>
+                <td style="padding:4px 6px;text-align:center;border:1px solid #1a3a5c;vertical-align:middle;width:55px">${idx+1}</td>
+                ${items.some(i=>i.imagen_url||S.products.find(p=>String(p.id)===String(i.producto_id))?.imagen_url)?'<td style="padding:4px 6px;text-align:center;border:1px solid #1a3a5c;vertical-align:middle;width:55px">'+(()=>{const imgSrc=item.imagen_url||(S.products.find(p=>String(p.id)===String(item.producto_id))?.imagen_url)||'';return imgSrc?'<img src="'+esc(imgSrc)+'" style="width:60px;height:60px;object-fit:cover">':''})()+'</td>':''}
+                <td style="padding:6px 8px;border:1px solid #1a3a5c;vertical-align:middle;min-width:120px"><strong>${esc(item.descripcion)}</strong>${String(item.incluye_iva).toLowerCase()==='true'?' <em style=\"font-size:9px;color:#666\">(+IVA incluido)</em>':''}</td>
+                <td style="padding:4px 6px;text-align:center;border:1px solid #1a3a5c;vertical-align:middle;width:55px">${item.cantidad}</td>
                 <td style="padding:8px 10px;text-align:right;border:1px solid #1a3a5c;vertical-align:middle">$ ${fmtP(item.precio_unit||0).replace('$ ','')}</td>
                 <td style="padding:8px 10px;text-align:right;border:1px solid #1a3a5c;vertical-align:middle;font-weight:700">$ ${fmtP(totalItem).replace('$ ','')}</td>
               </tr>`;
@@ -1798,7 +1798,7 @@ async function printQuote(id){
         <div style="border:2px solid #1a3a5c;padding:10px 14px;margin-bottom:20px">
           <div style="font-weight:700;margin-bottom:8px;font-size:12px">INFORMACIÓN BANCARIA Y FISCAL</div>
           <table style="font-size:10px;width:100%">
-            <tr><td style="width:200px;padding:2px 0"><strong>Cheques y transferencias a nombre de:</strong></td><td>${cfg.nombre_empresa||'CARRANZA BARRIENTOS, S.A. DE C.V.'}</td></tr>
+            <tr><td style="width:200px;padding:2px 0"><strong>Cheques y transferencias a nombre de:</strong></td><td>${cfg.nombre_empresa||'CARRANZA BARRIENTOS, S.A.S. DE C.V.'}</td></tr>
             <tr><td style="padding:2px 0"><strong>Banco:</strong></td><td>${cfg.banco||'Banco Agrícola'} — Cuenta Corriente N° ${cfg.cuenta_bancaria||'005490414780'}</td></tr>
             <tr><td style="padding:2px 0"><strong>NIT:</strong></td><td>${cfg.nit||''}</td></tr>
             <tr><td style="padding:2px 0"><strong>NRC:</strong></td><td>${cfg.nrc||''}</td></tr>
@@ -1809,7 +1809,7 @@ async function printQuote(id){
         <div style="display:flex;justify-content:space-between;margin-top:30px">
           <div style="text-align:center">
             <div style="border-top:2px solid #1a3a5c;width:200px;padding-top:6px;font-size:10px">
-              ${esc(q.asesor||'')} <br>Asesor de Ventas<br><strong>${cfg.nombre_empresa||'CARRANZA BARRIENTOS, S.A. DE C.V.'}</strong>
+              ${esc(q.asesor||'')} <br>Asesor de Ventas<br><strong>${cfg.nombre_empresa||'CARRANZA BARRIENTOS, S.A.S. DE C.V.'}</strong>
             </div>
           </div>
           <div style="text-align:center">
@@ -1819,7 +1819,7 @@ async function printQuote(id){
           </div>
         </div>
         <div style="text-align:center;margin-top:20px;font-size:8px;color:#666;border-top:1px solid #ccc;padding-top:8px">
-          ${cfg.nombre_empresa||'CARRANZA BARRIENTOS, S.A. DE C.V.'} • ${cfg.direccion||''} • Tel: ${cfg.telefono1||''} / ${cfg.telefono2||''} • ${cfg.email||''}
+          ${cfg.nombre_empresa||'CARRANZA BARRIENTOS, S.A.S. DE C.V.'} • ${cfg.direccion||''} • Tel: ${cfg.telefono1||''} / ${cfg.telefono2||''} • ${cfg.email||''}
         </div>
       </div>`;
     // Open in new window for reliable printing
