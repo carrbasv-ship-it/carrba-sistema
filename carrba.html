@@ -1756,7 +1756,7 @@ async function printQuote(id){
           <thead>
             <tr style="background:#1a3a5c;color:#fff">
               <th style="padding:7px 10px;text-align:center;width:36px">#</th>
-              ${hasImages?'<th style="padding:5px 8px;text-align:center;width:55px">IMG</th>':''} 
+              ${hasImages?'<th style="padding:5px 8px;text-align:center;width:60px">IMG</th>':''}
               <th style="padding:7px 10px;text-align:left">DESCRIPCIÓN DEL PRODUCTO</th>
               <th style="padding:7px 10px;text-align:center;width:55px">CANT</th>
               <th style="padding:7px 10px;text-align:right;width:85px">P. UNIT. (US$)</th>
@@ -1764,14 +1764,16 @@ async function printQuote(id){
             </tr>
           </thead>
           <tbody>
-            ${items.map((item,idx)=>{ 
+            ${items.map((item,idx)=>{
               const subtItem=parseFloat(item.cantidad||1)*parseFloat(item.precio_unit||0);
               const totalItem=String(item.incluye_iva).toLowerCase()==='true'?subtItem*1.13:subtItem;
-              return `<tr>
-                <td style="padding:4px 6px;text-align:center;border:1px solid #1a3a5c;vertical-align:middle;width:55px">${idx+1}</td>
-                ${hasImages?'<td style="padding:4px 6px;text-align:center;border:1px solid #1a3a5c;vertical-align:middle;width:55px">'+(()=>{const imgSrc=item.imagen_url||(S.products.find(p=>String(p.id)===String(item.producto_id))?.imagen_url)||'';return imgSrc?'<img src="'+esc(imgSrc)+'" style="width:60px;height:60px;object-fit:cover">':''})()+'</td>':''}
-                <td style="padding:6px 8px;border:1px solid #1a3a5c;vertical-align:middle;min-width:120px"><strong>${esc(item.descripcion)}</strong>${String(item.incluye_iva).toLowerCase()==='true'?' <em style=\"font-size:9px;color:#666\">(+IVA incluido)</em>':''}</td>
-                <td style="padding:4px 6px;text-align:center;border:1px solid #1a3a5c;vertical-align:middle;width:55px">${item.cantidad}</td>
+              const prod=S.products.find(function(p){return String(p.id)===String(item.producto_id);});
+              const imgSrc=item.imagen_url||(prod?prod.imagen_url:'')||'';
+              return '<tr>'
+                +'<td style="padding:4px 6px;text-align:center;border:1px solid #1a3a5c;vertical-align:middle;width:36px">'+(idx+1)+'</td>'
+                +(hasImages?'<td style="padding:4px 6px;text-align:center;border:1px solid #1a3a5c;vertical-align:middle;width:60px">'+(imgSrc?'<img src="'+esc(imgSrc)+'" style="width:50px;height:50px;object-fit:cover;border-radius:3px">':'')+'</td>':'')
+                +'<td style="padding:6px 8px;border:1px solid #1a3a5c;vertical-align:middle"><strong>'+esc(item.descripcion)+'</strong>'+(String(item.incluye_iva).toLowerCase()==='true'?' <em style="font-size:9px;color:#666">(+IVA incluido)</em>':'')+'</td>'
+                +'<td style="padding:4px 6px;text-align:center;border:1px solid #1a3a5c;vertical-align:middle;width:55px">'+item.cantidad+'</td>'
                 <td style="padding:8px 10px;text-align:right;border:1px solid #1a3a5c;vertical-align:middle">$ ${fmtP(item.precio_unit||0).replace('$ ','')}</td>
                 <td style="padding:8px 10px;text-align:right;border:1px solid #1a3a5c;vertical-align:middle;font-weight:700">$ ${fmtP(totalItem).replace('$ ','')}</td>
               </tr>`;
