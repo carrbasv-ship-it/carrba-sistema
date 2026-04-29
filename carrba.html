@@ -868,9 +868,19 @@ function getDefaultCreds(){
 function doLogin(){
   const u=document.getElementById('loginUser').value.trim();
   const p=document.getElementById('loginPass').value;
-  let creds=getCredentials();
-  if(creds.length===0){ creds=getDefaultCreds(); saveCredentials(creds); }
-  const found=creds.find(c=>c.user===u&&c.pass===p);
+  // Always merge hardcoded defaults with saved credentials
+  const defaults=getDefaultCreds();
+  let saved=[];
+  try{ saved=JSON.parse(localStorage.getItem('carrba_users')||'[]'); }catch(e){}
+  // Merge: saved overrides defaults, but defaults always available as fallback
+  const merged=[...defaults];
+  saved.forEach(function(su){
+    const idx=merged.findIndex(function(d){return d.user===su.user;});
+    if(idx>=0) merged[idx]=su; else merged.push(su);
+  });
+  // Save merged back so future loads have them
+  saveCredentials(merged);
+  const found=merged.find(function(c){return c.user===u&&c.pass===p;});
   if(!found){ document.getElementById('loginError').textContent='Usuario o contraseña incorrectos'; return; }
   S.currentUser=found;
   sessionStorage.setItem('carrba_sess',JSON.stringify(found));
@@ -891,6 +901,11 @@ function checkSession(){
   const logo=LOGO_B64;
   document.getElementById('loginLogo').src=logo;
   document.getElementById('sidebarLogo').src=logo;
+  // Always ensure defaults exist in localStorage
+  const defaults=getDefaultCreds();
+  let saved=[];
+  try{ saved=JSON.parse(localStorage.getItem('carrba_users')||'[]'); }catch(e){}
+  if(saved.length===0){ saveCredentials(defaults); }
   const sess=sessionStorage.getItem('carrba_sess');
   if(sess){ try{ S.currentUser=JSON.parse(sess); startApp(); return; }catch(e){} }
 }
