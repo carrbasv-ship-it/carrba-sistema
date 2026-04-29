@@ -1701,6 +1701,7 @@ async function printQuote(id){
     const ivaAmt=items.filter(i=>String(i.incluye_iva).toLowerCase()==='true').reduce((a,i)=>a+(parseFloat(i.cantidad||1)*parseFloat(i.precio_unit||0)*0.13),0);
     const subtotal=items.reduce((a,i)=>a+(parseFloat(i.cantidad||1)*parseFloat(i.precio_unit||0)),0);
     const total=subtotal+ivaAmt;
+    var hasImages=items.some(function(i){ return i.imagen_url||(S.products.find(function(p){return String(p.id)===String(i.producto_id);})||{}).imagen_url; });
     const html=`
       <div style="font-family:Arial,sans-serif;font-size:11px;color:#000;padding:20px;max-width:800px">
         <!-- HEADER -->
@@ -1754,12 +1755,12 @@ async function printQuote(id){
         <table style="width:100%;border-collapse:collapse;margin-bottom:16px">
           <thead>
             <tr style="background:#1a3a5c;color:#fff">
-              <th style="padding:7px 10px;text-align:center;width:40px">#</th>
-              ${items.some(i=>i.imagen_url)?'<th style="padding:5px 8px;text-align:center;width:55px">IMG</th>':''} 
+              <th style="padding:7px 10px;text-align:center;width:36px">#</th>
+              ${hasImages?'<th style="padding:5px 8px;text-align:center;width:55px">IMG</th>':''} 
               <th style="padding:7px 10px;text-align:left">DESCRIPCIÓN DEL PRODUCTO</th>
-              <th style="padding:7px 10px;text-align:center;width:60px">CANT</th>
-              <th style="padding:7px 10px;text-align:right;width:90px">P. UNIT. (US$)</th>
-              <th style="padding:7px 10px;text-align:right;width:90px">TOTAL (US$)</th>
+              <th style="padding:7px 10px;text-align:center;width:55px">CANT</th>
+              <th style="padding:7px 10px;text-align:right;width:85px">P. UNIT. (US$)</th>
+              <th style="padding:7px 10px;text-align:right;width:85px">TOTAL (US$)</th>
             </tr>
           </thead>
           <tbody>
@@ -1768,7 +1769,7 @@ async function printQuote(id){
               const totalItem=String(item.incluye_iva).toLowerCase()==='true'?subtItem*1.13:subtItem;
               return `<tr>
                 <td style="padding:4px 6px;text-align:center;border:1px solid #1a3a5c;vertical-align:middle;width:55px">${idx+1}</td>
-                ${items.some(i=>i.imagen_url||S.products.find(p=>String(p.id)===String(i.producto_id))?.imagen_url)?'<td style="padding:4px 6px;text-align:center;border:1px solid #1a3a5c;vertical-align:middle;width:55px">'+(()=>{const imgSrc=item.imagen_url||(S.products.find(p=>String(p.id)===String(item.producto_id))?.imagen_url)||'';return imgSrc?'<img src="'+esc(imgSrc)+'" style="width:60px;height:60px;object-fit:cover">':''})()+'</td>':''}
+                ${hasImages?'<td style="padding:4px 6px;text-align:center;border:1px solid #1a3a5c;vertical-align:middle;width:55px">'+(()=>{const imgSrc=item.imagen_url||(S.products.find(p=>String(p.id)===String(item.producto_id))?.imagen_url)||'';return imgSrc?'<img src="'+esc(imgSrc)+'" style="width:60px;height:60px;object-fit:cover">':''})()+'</td>':''}
                 <td style="padding:6px 8px;border:1px solid #1a3a5c;vertical-align:middle;min-width:120px"><strong>${esc(item.descripcion)}</strong>${String(item.incluye_iva).toLowerCase()==='true'?' <em style=\"font-size:9px;color:#666\">(+IVA incluido)</em>':''}</td>
                 <td style="padding:4px 6px;text-align:center;border:1px solid #1a3a5c;vertical-align:middle;width:55px">${item.cantidad}</td>
                 <td style="padding:8px 10px;text-align:right;border:1px solid #1a3a5c;vertical-align:middle">$ ${fmtP(item.precio_unit||0).replace('$ ','')}</td>
