@@ -1789,9 +1789,9 @@ async function printQuote(id){
                 +(hasImages?'<td style="padding:4px 6px;text-align:center;border:1px solid #1a3a5c;vertical-align:middle;width:60px">'+(imgSrc?'<img src="'+esc(imgSrc)+'" style="width:50px;height:50px;object-fit:cover;border-radius:3px">':'')+'</td>':'')
                 +'<td style="padding:6px 8px;border:1px solid #1a3a5c;vertical-align:middle"><strong>'+esc(item.descripcion)+'</strong>'+(String(item.incluye_iva).toLowerCase()==='true'?' <em style="font-size:9px;color:#666">(+IVA incluido)</em>':'')+'</td>'
                 +'<td style="padding:4px 6px;text-align:center;border:1px solid #1a3a5c;vertical-align:middle;width:55px">'+item.cantidad+'</td>'
-                <td style="padding:8px 10px;text-align:right;border:1px solid #1a3a5c;vertical-align:middle">$ ${fmtP(item.precio_unit||0).replace('$ ','')}</td>
-                <td style="padding:8px 10px;text-align:right;border:1px solid #1a3a5c;vertical-align:middle;font-weight:700">$ ${fmtP(totalItem).replace('$ ','')}</td>
-              </tr>`;
+                +'<td style="padding:8px 10px;text-align:right;border:1px solid #1a3a5c;vertical-align:middle">'+fmtP(item.precio_unit||0)+'</td>'
+                +'<td style="padding:8px 10px;text-align:right;border:1px solid #1a3a5c;vertical-align:middle;font-weight:700">'+fmtP(totalItem)+'</td>'
+                +'</tr>';
             }).join('')}
           </tbody>
         </table>
